@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PFPS Daily Program</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F7F5F2;
+    --surface: #FFFFFF;
+    --border: #E4E0DA;
+    --text: #1A1A18;
+    --muted: #8A8680;
+    --accent: #C17B4E;
+    --accent-light: #F0E6DC;
+    --left: #4A7B6F;
+    --left-light: #E0EDEA;
+    --warn: #8B5E3C;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  header {
+    max-width: 640px;
+    margin: 0 auto 32px;
+  }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--text);
+  }
+
+  h1 span {
+    color: var(--accent);
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .controls {
+    max-width: 640px;
+    margin: 0 auto 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .control-group label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .toggle-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .toggle-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .toggle-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .toggle-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  .toggle-btn.active-eq {
+    background: var(--left);
+    border-color: var(--left);
+    color: white;
+  }
+
+  .output {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .phase {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  .phase-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .phase-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  .phase-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .phase-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-light);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .exercise-list {
+    padding: 4px 0;
+  }
+
+  .exercise {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: start;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .exercise:last-child {
+    border-bottom: none;
+  }
+
+  .ex-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .ex-note {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  .left-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    background: var(--left-light);
+    color: var(--left);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+    letter-spacing: 0.05em;
+  }
+
+  .ex-sets {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    white-space: nowrap;
+    text-align: right;
+    padding-top: 2px;
+  }
+
+  .total-bar {
+    max-width: 640px;
+    margin: 0 auto 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .total-label {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .total-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--accent);
+  }
+
+  .tip-box {
+    max-width: 640px;
+    margin: 16px auto 0;
+    background: var(--accent-light);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--warn);
+    line-height: 1.5;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    max-width: 640px;
+    margin: 8px auto 24px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Knee Rehab</div>
+  <h1>PFPS Daily <span>Program</span></h1>
+  <div class="subtitle">Patellofemoral / runner's knee. Left chain focus.</div>
+</header>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Time available</label>
+    <div class="toggle-row" id="time-toggles">
+      <button class="toggle-btn" data-time="5" onclick="selectTime(this)">5 min</button>
+      <button class="toggle-btn" data-time="10" onclick="selectTime(this)">10 min</button>
+      <button class="toggle-btn" data-time="15" onclick="selectTime(this)">15 min</button>
+      <button class="toggle-btn" data-time="20" onclick="selectTime(this)">20 min</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label>Equipment available</label>
+    <div class="toggle-row" id="eq-toggles">
+      <button class="toggle-btn" data-eq="none" onclick="toggleEq(this)">None</button>
+      <button class="toggle-btn" data-eq="band" onclick="toggleEq(this)">Resistance band</button>
+      <button class="toggle-btn" data-eq="step" onclick="toggleEq(this)">Step / box</button>
+      <button class="toggle-btn" data-eq="weights" onclick="toggleEq(this)">Weights</button>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div id="output" class="output">
+  <div class="empty-state">Select time available to generate your program.</div>
+</div>
+
+<script>
+  let selectedTime = null;
+  let selectedEq = new Set();
+
+  // Exercise library
+  // priority: lower = more essential. phase: activation / vmo / stability / stretch
+  // equipment: null = no equipment, else array of equipment keys required
+  // left: true = emphasize left side
+  // minTime: minimum session time to include
+  const exercises = [
+    // ACTIVATION
+    {
+      id: 'glute_bridge',
+      name: 'Glute Bridge',
+      sets: '2x20',
+      phase: 'activation',
+      note: 'Drive through heels, squeeze hard at top.',
+      left: false,
+      equipment: null,
+      priority: 1,
+      time: 2,
+      minTime: 5
+    },
+    {
+      id: 'clamshell',
+      name: 'Clamshells',
+      sets: '2x20',
+      phase: 'activation',
+      note: 'Left side focus. Keep hips stacked, don\'t rock back.',
+      left: true,
+      equipment: null,
+      priority: 2,
+      time: 2,
+      minTime: 5
+    },
+    {
+      id: 'clamshell_banded',
+      name: 'Banded Clamshells',
+      sets: '2x20',
+      phase: 'activation',
+      note: 'Band just above knees. Left side focus.',
+      left: true,
+      equipment: ['band'],
+      priority: 1,
+      time: 2,
+      minTime: 5,
+      replacesId: 'clamshell'
+    },
+    {
+      id: 'hip_abduction',
+      name: 'Side-Lying Hip Abduction',
+      sets: '2x15',
+      phase: 'activation',
+      note: 'Slow and controlled. No hip rocking.',
+      left: false,
+      equipment: null,
+      priority: 3,
+      time: 2,
+      minTime: 10
+    },
+
+    // VMO
+    {
+      id: 'seated_leg_lift',
+      name: 'Seated Leg Lift',
+      sets: '2x10 each',
+      phase: 'vmo',
+      note: 'Flex foot, hold flex, lift. Keep quads actively engaged the whole time.',
+      left: false,
+      equipment: null,
+      priority: 1,
+      time: 2,
+      minTime: 5
+    },
+    {
+      id: 'inner_thigh_raise',
+      name: 'Side-Lying Inner Thigh Raise + Pulse',
+      sets: '2x10 + 10 pulse',
+      phase: 'vmo',
+      note: 'Foot flexed, leg slightly forward. Apply hand pressure to increase load.',
+      left: false,
+      equipment: null,
+      priority: 2,
+      time: 3,
+      minTime: 10
+    },
+    {
+      id: 'tke',
+      name: 'Terminal Knee Extension',
+      sets: '2x15',
+      phase: 'vmo',
+      note: 'Small range, squeeze VMO hard at lockout.',
+      left: true,
+      equipment: ['band'],
+      priority: 1,
+      time: 2,
+      minTime: 5
+    },
+
+    // STABILITY
+    {
+      id: 'sl_glute_bridge',
+      name: 'Single-Leg Glute Bridge',
+      sets: '2x12 each',
+      phase: 'stability',
+      note: 'Left side focus. Keep hips level throughout.',
+      left: true,
+      equipment: null,
+      priority: 1,
+      time: 3,
+      minTime: 10
+    },
+    {
+      id: 'step_down',
+      name: 'Step-Down (Eccentric)',
+      sets: '2x10 each',
+      phase: 'stability',
+      note: '3 sec lowering phase. Knee tracks over 2nd toe. This is your running readiness test.',
+      left: true,
+      equipment: ['step'],
+      priority: 1,
+      time: 3,
+      minTime: 10
+    },
+    {
+      id: 'lateral_band_walk',
+      name: 'Lateral Band Walk',
+      sets: '2x15 each way',
+      phase: 'stability',
+      note: 'Stay low. Knees don\'t cave in.',
+      left: false,
+      equipment: ['band'],
+      priority: 2,
+      time: 2,
+      minTime: 15
+    },
+    {
+      id: 'reverse_lunge',
+      name: 'Reverse Lunge',
+      sets: '2x10 each',
+      phase: 'stability',
+      note: 'Bodyweight first. Watch left knee tracking over 2nd toe.',
+      left: true,
+      equipment: null,
+      priority: 3,
+      time: 3,
+      minTime: 15
+    },
+    {
+      id: 'lunge_pulse',
+      name: 'Low Lunge Pulse',
+      sets: '2x10 each',
+      phase: 'stability',
+      note: 'Heel stays under knee. Hold wall for balance if needed.',
+      left: true,
+      equipment: null,
+      priority: 4,
+      time: 3,
+      minTime: 20
+    },
+    {
+      id: 'weighted_step_up',
+      name: 'Weighted Step-Up',
+      sets: '3x10 each',
+      phase: 'stability',
+      note: 'Drive through left heel. Control the descent.',
+      left: true,
+      equipment: ['step', 'weights'],
+      priority: 1,
+      time: 4,
+      minTime: 15,
+      replacesId: 'step_down'
+    },
+
+    // STRETCH
+    {
+      id: 'quad_stretch',
+      name: 'Quad Stretch',
+      sets: '30 sec each',
+      phase: 'stretch',
+      note: 'Standing or side-lying. Key for VMO recovery.',
+      left: false,
+      equipment: null,
+      priority: 1,
+      time: 1,
+      minTime: 5
+    },
+    {
+      id: 'hip_flexor_stretch',
+      name: 'Hip Flexor Lunge Stretch',
+      sets: '30 sec each',
+      phase: 'stretch',
+      note: 'Pelvis tucked under. Targets iliopsoas.',
+      left: false,
+      equipment: null,
+      priority: 2,
+      time: 1,
+      minTime: 10
+    },
+    {
+      id: 'hamstring_reach',
+      name: 'Hamstring Reach',
+      sets: '30 sec',
+      phase: 'stretch',
+      note: 'Seated, legs straight, reach forward. Important for knee loading patterns.',
+      left: false,
+      equipment: null,
+      priority: 3,
+      time: 1,
+      minTime: 15
+    },
+    {
+      id: 'pigeon',
+      name: 'Pigeon Pose',
+      sets: '60 sec each',
+      phase: 'stretch',
+      note: 'Deep external rotator release. Hold long enough to feel tissue change.',
+      left: false,
+      equipment: null,
+      priority: 2,
+      time: 2,
+      minTime: 15
+    }
+  ];
+
+  const phaseConfig = {
+    activation: { label: 'Phase 1', title: 'Activation', color: '#C17B4E' },
+    vmo: { label: 'Phase 2', title: 'VMO Isolation', color: '#4A7B6F' },
+    stability: { label: 'Phase 3', title: 'Stability + Integration', color: '#6B5EA8' },
+    stretch: { label: 'Phase 4', title: 'Stretch', color: '#8A8680' }
+  };
+
+  const tips = {
+    5: 'Quick hit: activation + VMO isolation only. Do this before any workout or run.',
+    10: 'Solid daily minimum. Covers activation, VMO, and one stability move.',
+    15: 'Full program. Add pigeon if your right hip is still snapping.',
+    20: 'Gym session. Use equipment for added load -- especially weighted step-ups if you have a box.'
+  };
+
+  function selectTime(btn) {
+    document.querySelectorAll('[data-time]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedTime = parseInt(btn.dataset.time);
+    render();
+  }
+
+  function toggleEq(btn) {
+    const eq = btn.dataset.eq;
+    if (eq === 'none') {
+      selectedEq.clear();
+      document.querySelectorAll('[data-eq]').forEach(b => b.classList.remove('active-eq'));
+      btn.classList.add('active-eq');
+    } else {
+      document.querySelector('[data-eq="none"]').classList.remove('active-eq');
+      if (selectedEq.has(eq)) {
+        selectedEq.delete(eq);
+        btn.classList.remove('active-eq');
+      } else {
+        selectedEq.add(eq);
+        btn.classList.add('active-eq');
+      }
+    }
+    render();
+  }
+
+  function hasEquipment(ex) {
+    if (!ex.equipment) return true;
+    return ex.equipment.every(e => selectedEq.has(e));
+  }
+
+  function getProgram() {
+    if (!selectedTime) return null;
+
+    // Build replacement map
+    const replacedIds = new Set();
+    const replacements = {};
+    exercises.forEach(ex => {
+      if (ex.replacesId && hasEquipment(ex) && ex.minTime <= selectedTime) {
+        replacedIds.add(ex.replacesId);
+        replacements[ex.replacesId] = ex;
+      }
+    });
+
+    let pool = exercises.filter(ex => {
+      if (ex.minTime > selectedTime) return false;
+      if (replacedIds.has(ex.id)) return false; // replaced by upgraded version
+      if (ex.replacesId) return hasEquipment(ex); // only include upgrade if equipment available
+      if (!hasEquipment(ex)) return false;
+      return true;
+    });
+
+    // Sort by phase order then priority
+    const phaseOrder = ['activation', 'vmo', 'stability', 'stretch'];
+    pool.sort((a, b) => {
+      const po = phaseOrder.indexOf(a.phase) - phaseOrder.indexOf(b.phase);
+      if (po !== 0) return po;
+      return a.priority - b.priority;
+    });
+
+    // Greedily fill to time budget (always include stretch at end)
+    const stretches = pool.filter(e => e.phase === 'stretch');
+    const nonStretches = pool.filter(e => e.phase !== 'stretch');
+    const stretchTime = stretches.reduce((s, e) => s + e.time, 0);
+    let budget = selectedTime - stretchTime;
+    let selected = [];
+    for (const ex of nonStretches) {
+      if (budget >= ex.time) {
+        selected.push(ex);
+        budget -= ex.time;
+      }
+    }
+    selected = [...selected, ...stretches];
+    return selected;
+  }
+
+  function render() {
+    const output = document.getElementById('output');
+    if (!selectedTime) {
+      output.innerHTML = '<div class="empty-state">Select time available to generate your program.</div>';
+      return;
+    }
+
+    const program = getProgram();
+    const phaseOrder = ['activation', 'vmo', 'stability', 'stretch'];
+    const byPhase = {};
+    phaseOrder.forEach(p => byPhase[p] = []);
+    program.forEach(ex => byPhase[ex.phase].push(ex));
+
+    const totalTime = program.reduce((s, e) => s + e.time, 0);
+
+    let html = `
+      <div class="total-bar">
+        <span class="total-label">${program.length} exercises</span>
+        <span class="total-time">~${totalTime} min</span>
+      </div>
+    `;
+
+    phaseOrder.forEach(phase => {
+      const exs = byPhase[phase];
+      if (!exs.length) return;
+      const cfg = phaseConfig[phase];
+      const phaseTime = exs.reduce((s, e) => s + e.time, 0);
+
+      html += `<div class="phase">
+        <div class="phase-header">
+          <div>
+            <div class="phase-label">${cfg.label}</div>
+            <div class="phase-title">${cfg.title}</div>
+          </div>
+          <div class="phase-time">~${phaseTime} min</div>
+        </div>
+        <div class="exercise-list">`;
+
+      exs.forEach(ex => {
+        html += `<div class="exercise">
+          <div>
+            <div class="ex-name">${ex.name}${ex.left ? '<span class="left-tag">LEFT</span>' : ''}</div>
+            <div class="ex-note">${ex.note}</div>
+          </div>
+          <div class="ex-sets">${ex.sets}</div>
+        </div>`;
+      });
+
+      html += `</div></div>`;
+    });
+
+    html += `<div class="tip-box">${tips[selectedTime]}</div>`;
+    output.innerHTML = html;
+  }
+</script>
+</body>
+</html>
