@@ -134,7 +134,11 @@ h1 span { color: var(--accent); }
 .day-list-row:last-child { border-bottom: none; }
 .day-list-row:hover { background: var(--bg); }
 .day-list-name { width: 40px; font-size: 13px; font-weight: 600; flex-shrink: 0; color: var(--text); }
-.day-list-badge {
+.day-list-badges { display: flex; gap: 4px; flex-wrap: wrap; flex-shrink: 0; }
+.extra-session-block { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--bg); }
+.extra-session-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.extra-session-header .field-label { margin-bottom: 0; }
+.add-session-btn { width: 100%; }
   font-size: 11px;
   font-weight: 600;
   padding: 3px 9px;
@@ -455,8 +459,8 @@ const STORE_KEY = 'workoutHubWeek';
 const LIBRARY_KEY = 'workoutHubLibrary';
 
 const DEFAULT_LIBRARY = {
-  strength: ['Upper body', 'Lower body', 'Full body', 'Push', 'Pull', 'Legs', 'Core'],
-  cardio: ['Run', 'Bike', 'Row', 'HIIT']
+  strength: [],
+  cardio: []
 };
 
 function makeId() {
@@ -573,12 +577,15 @@ function defaultWeekState() {
   return {
     weekStart: currentWeekStartLabel(),
     targets: { strength: 3, cardio: 2 },
-    days: DAYS.map(() => ({ type: null, className: '', classCategory: null, subtype: '', notes: '', done: false, knee: false }))
+    days: DAYS.map(() => ({ type: null, className: '', classCategory: null, subtype: '', notes: '', done: false, knee: false, extras: [] }))
   };
 }
 
 function normalizeDay(d) {
-  return Object.assign({ type: null, className: '', classCategory: null, subtype: '', notes: '', done: false, knee: false }, d || {});
+  const day = Object.assign({ type: null, className: '', classCategory: null, subtype: '', notes: '', done: false, knee: false, extras: [] }, d || {});
+  if (!Array.isArray(day.extras)) day.extras = [];
+  day.extras = day.extras.map(ex => Object.assign({ type: null, className: '', classCategory: null, classCategoryManual: false, subtype: '', notes: '' }, ex || {}));
+  return day;
 }
 
 function currentWeekStartLabel() {
@@ -728,7 +735,7 @@ function suggestSubtype(idx) {
   const type = d.type;
   if (type !== 'strength' && type !== 'cardio') return;
 
-  const pool = library[type];
+  const pool = library[type].filter(e => e.link);
   if (!pool.length) return;
   const usedThisWeek = weekState.days
     .filter((x, j) => j !== idx && x.type === type && x.subtype)
@@ -748,6 +755,104 @@ function suggestSubtype(idx) {
 function commitSubtype(idx, val) {
   weekState.days[idx].subtype = val;
   saveState();
+}
+
+// ---- Extra sessions (2-a-days: a second/third workout on the same day) ----
+
+function addExtraSession(dayIdx) {
+  const d = weekState.days[dayIdx];
+  if (!d.extras) d.extras = [];
+  d.extras.push({ type: null, className: '', classCategory: null, classCategoryManual: false, subtype: '', notes: '' });
+  saveState();
+  renderWeek();
+}
+
+function removeExtraSession(dayIdx, extraIdx) {
+  weekState.days[dayIdx].extras.splice(extraIdx, 1);
+  saveState();
+  renderWeek();
+}
+
+function setExtraType(dayIdx, extraIdx, type) {
+  const ex = weekState.days[dayIdx].extras[extraIdx];
+  const newType = ex.type === type ? null : type;
+  if (newType !== ex.type) {
+    if (newType !== 'class') { ex.className = ''; ex.classCategory = null; ex.classCategoryManual = false; }
+    if (newType !== 'strength' && newType !== 'cardio') ex.subtype = '';
+  }
+  ex.type = newType;
+  saveState();
+  renderWeek();
+}
+
+function setExtraClassName(dayIdx, extraIdx, val) {
+  weekState.days[dayIdx].extras[extraIdx].className = val;
+  saveState();
+}
+
+function commitExtraClassName(dayIdx, extraIdx, val) {
+  const ex = weekState.days[dayIdx].extras[extraIdx];
+  ex.className = val;
+  if (!ex.classCategoryManual) ex.classCategory = guessClassCategory(val);
+  saveState();
+  renderWeek();
+}
+
+function setExtraClassCategory(dayIdx, extraIdx, category) {
+  const ex = weekState.days[dayIdx].extras[extraIdx];
+  ex.classCategory = ex.classCategory === category ? null : category;
+  ex.classCategoryManual = true;
+  saveState();
+  renderWeek();
+}
+
+function setExtraSubtype(dayIdx, extraIdx, val) {
+  weekState.days[dayIdx].extras[extraIdx].subtype = val;
+  saveState();
+}
+
+function commitExtraSubtype(dayIdx, extraIdx, val) {
+  weekState.days[dayIdx].extras[extraIdx].subtype = val;
+  saveState();
+}
+
+function setExtraNotes(dayIdx, extraIdx, val) {
+  weekState.days[dayIdx].extras[extraIdx].notes = val;
+  saveState();
+}
+
+function pickExtraLibraryEntry(dayIdx, extraIdx, type, id) {
+  const entry = findLibraryEntry(type, id);
+  if (!entry) return;
+  const ex = weekState.days[dayIdx].extras[extraIdx];
+  ex.subtype = entry.name;
+  if (!ex.notes || !ex.notes.trim()) {
+    ex.notes = [entry.link, entry.notes].filter(Boolean).join('\n');
+  }
+  saveState();
+  renderWeek();
+}
+
+function suggestExtraSubtype(dayIdx, extraIdx) {
+  const ex = weekState.days[dayIdx].extras[extraIdx];
+  const type = ex.type;
+  if (type !== 'strength' && type !== 'cardio') return;
+  const pool = library[type].filter(e => e.link);
+  if (!pool.length) return;
+  const choice = pool[Math.floor(Math.random() * pool.length)];
+  ex.subtype = choice.name;
+  if (!ex.notes || !ex.notes.trim()) {
+    ex.notes = [choice.link, choice.notes].filter(Boolean).join('\n');
+  }
+  saveState();
+  renderWeek();
+}
+
+function saveExtraToLibrary(dayIdx, extraIdx) {
+  const ex = weekState.days[dayIdx].extras[extraIdx];
+  if (!ex.subtype || !ex.subtype.trim() || (ex.type !== 'strength' && ex.type !== 'cardio')) return;
+  addLibraryEntry(ex.type, ex.subtype, ex.notes, '', []);
+  renderWeek();
 }
 
 function toggleDone(idx) {
@@ -781,6 +886,10 @@ function autofillWeek() {
     } else {
       openIdxs.push(i);
     }
+    (d.extras || []).forEach(ex => {
+      if (ex.type === 'strength' || (ex.type === 'class' && ex.classCategory === 'strength')) fixedCount.strength++;
+      if (ex.type === 'cardio' || (ex.type === 'class' && ex.classCategory === 'cardio')) fixedCount.cardio++;
+    });
   });
 
   let needStrength = Math.max(0, targets.strength - fixedCount.strength);
@@ -800,7 +909,7 @@ function autofillWeek() {
     if (openIdxs[i] !== undefined) {
       const dayIdx = openIdxs[i];
       days[dayIdx].type = type;
-      const pool = library[type];
+      const pool = library[type].filter(e => e.link);
       const usedSoFar = days
         .filter((x, j) => j !== dayIdx && x.type === type && x.subtype)
         .map(x => x.subtype.toLowerCase());
@@ -821,14 +930,19 @@ function renderSummary() {
   const days = weekState.days;
   const counts = { strength: 0, cardio: 0, class: 0 };
   let kneeCount = 0;
-  days.forEach(d => {
-    if (d.type === 'class') {
+  const tallySession = (s) => {
+    if (!s.type) return;
+    if (s.type === 'class') {
       counts.class++;
-      if (d.classCategory === 'strength') counts.strength++;
-      if (d.classCategory === 'cardio') counts.cardio++;
-    } else if (d.type && counts.hasOwnProperty(d.type)) {
-      counts[d.type]++;
+      if (s.classCategory === 'strength') counts.strength++;
+      if (s.classCategory === 'cardio') counts.cardio++;
+    } else if (counts.hasOwnProperty(s.type)) {
+      counts[s.type]++;
     }
+  };
+  days.forEach(d => {
+    tallySession(d);
+    (d.extras || []).forEach(tallySession);
     if (d.knee) kneeCount++;
   });
   const t = weekState.targets;
@@ -841,11 +955,20 @@ function renderSummary() {
   `;
 }
 
-function dayBadgeInfo(d) {
-  if (!d.type) return { label: '—', cls: '' };
-  if (d.type === 'class') return { label: d.className || 'Class', cls: 'class' };
-  if (d.type === 'rest') return { label: 'Rest', cls: 'rest' };
-  return { label: (d.subtype ? d.subtype : TYPE_LABELS[d.type]), cls: d.type };
+function dayBadges(d) {
+  const list = [];
+  if (d.type === 'class') list.push({ label: d.className || 'Class', cls: 'class' });
+  else if (d.type === 'rest') list.push({ label: 'Rest', cls: 'rest' });
+  else if (d.type) list.push({ label: (d.subtype ? d.subtype : TYPE_LABELS[d.type]), cls: d.type });
+
+  (d.extras || []).forEach(ex => {
+    if (!ex.type) return;
+    if (ex.type === 'class') list.push({ label: ex.className || 'Class', cls: 'class' });
+    else list.push({ label: (ex.subtype ? ex.subtype : TYPE_LABELS[ex.type]), cls: ex.type });
+  });
+
+  if (!list.length) list.push({ label: '—', cls: '' });
+  return list;
 }
 
 function renderWeek() {
@@ -858,11 +981,11 @@ function renderWeek() {
   if (openDayIndex === null) {
     cardLabel.textContent = 'Sun – Sat · tap a day';
     grid.innerHTML = weekState.days.map((d, i) => {
-      const badge = dayBadgeInfo(d);
+      const badges = dayBadges(d);
       return `
         <button class="day-list-row" onclick="openDay(${i})">
           <div class="day-list-name">${DAYS[i]}</div>
-          <div class="day-list-badge ${badge.cls}">${badge.label}</div>
+          <div class="day-list-badges">${badges.map(b => `<div class="day-list-badge ${b.cls}">${b.label}</div>`).join('')}</div>
           <div class="day-list-detail">${d.notes ? d.notes.replace(/</g,'&lt;').split('\n')[0] : ''}</div>
           ${d.knee ? '<div class="day-list-knee">+ knee</div>' : ''}
           ${d.done ? '<div class="day-list-done">&check;</div>' : ''}
@@ -899,7 +1022,7 @@ function renderWeek() {
 
   let subtypeField = '';
   if (d.type === 'strength' || d.type === 'cardio') {
-    const pool = library[d.type];
+    const pool = library[d.type].filter(e => e.link);
     const allTags = [...new Set(pool.flatMap(e => e.tags || []))];
     const filteredPool = dayTagFilter.size === 0
       ? pool
@@ -930,6 +1053,11 @@ function renderWeek() {
         oninput="setNotes(${i}, this.value)">${(d.notes||'').replace(/</g,'&lt;')}</textarea>
     </div>`;
 
+  const ordinalLabels = ['2nd', '3rd', '4th', '5th'];
+  const extraBlocks = (d.extras || []).map((ex, idx) =>
+    renderExtraBlock(i, idx, ex, ordinalLabels[idx] || (idx + 2) + 'th')
+  ).join('');
+
   grid.innerHTML = `
     <button class="day-detail-back" onclick="closeDay()">&lsaquo; Back to week</button>
     <div class="day-detail-title">${DAYS[i]}</div>
@@ -947,6 +1075,9 @@ function renderWeek() {
     ${classField}
     ${subtypeField}
     ${notesField}
+    ${extraBlocks}
+
+    <button class="save-lib-btn add-session-btn" onclick="addExtraSession(${i})">+ Add another workout today (2-a-day)</button>
 
     <button class="done-toggle-btn${d.done ? ' active' : ''}" onclick="toggleDone(${i})">
       ${d.done ? '✓ Done' : 'Mark as done'}
@@ -954,6 +1085,61 @@ function renderWeek() {
   `;
 
   renderSummary();
+}
+
+function renderExtraBlock(dayIdx, extraIdx, ex, ordinal) {
+  const typeButtons = ['strength', 'cardio', 'class'].map(type => `
+    <button class="type-btn${ex.type === type ? ' active' : ''}" onclick="setExtraType(${dayIdx}, ${extraIdx}, '${type}')">${TYPE_LABELS[type]}</button>
+  `).join('');
+
+  const classField = ex.type === 'class' ? `
+    <div class="field-block">
+      <div class="field-label">Class</div>
+      <input class="class-input" style="width:100%;" placeholder="e.g. Pilates 6pm"
+        value="${(ex.className || '').replace(/"/g,'&quot;')}" oninput="setExtraClassName(${dayIdx}, ${extraIdx}, this.value)"
+        onblur="commitExtraClassName(${dayIdx}, ${extraIdx}, this.value)">
+      <div class="field-label" style="margin-top:10px;">Counts toward</div>
+      <div class="type-row">
+        <button class="type-btn${ex.classCategory === 'strength' ? ' active' : ''}" onclick="setExtraClassCategory(${dayIdx}, ${extraIdx}, 'strength')">Strength</button>
+        <button class="type-btn${ex.classCategory === 'cardio' ? ' active' : ''}" onclick="setExtraClassCategory(${dayIdx}, ${extraIdx}, 'cardio')">Cardio</button>
+      </div>
+    </div>` : '';
+
+  let subtypeField = '';
+  if (ex.type === 'strength' || ex.type === 'cardio') {
+    const pool = library[ex.type].filter(e => e.link);
+    subtypeField = `
+    <div class="field-block">
+      <div class="field-label">What kind of ${TYPE_LABELS[ex.type].toLowerCase()}?</div>
+      <div class="chip-row">
+        ${pool.map(e => `<button class="chip-btn" onclick="pickExtraLibraryEntry(${dayIdx}, ${extraIdx}, '${ex.type}', '${e.id}')">${e.name.replace(/</g,'&lt;')}${e.link ? ' 🔗' : ''}</button>`).join('')}
+        <button class="chip-btn" onclick="suggestExtraSubtype(${dayIdx}, ${extraIdx})" title="Surprise me">✦ surprise me</button>
+      </div>
+      <textarea class="big-textarea" placeholder="Type or describe the workout..."
+        oninput="setExtraSubtype(${dayIdx}, ${extraIdx}, this.value)" onblur="commitExtraSubtype(${dayIdx}, ${extraIdx}, this.value)">${(ex.subtype || '').replace(/</g,'&lt;')}</textarea>
+      <button class="save-lib-btn" onclick="saveExtraToLibrary(${dayIdx}, ${extraIdx})">+ Save as reusable workout</button>
+    </div>`;
+  }
+
+  const notesField = `
+    <div class="field-block">
+      <div class="field-label">Notes / link</div>
+      <textarea class="big-textarea notes-textarea" placeholder="Paste a link or note what you did..."
+        oninput="setExtraNotes(${dayIdx}, ${extraIdx}, this.value)">${(ex.notes || '').replace(/</g,'&lt;')}</textarea>
+    </div>`;
+
+  return `
+    <div class="field-block extra-session-block">
+      <div class="extra-session-header">
+        <div class="field-label">${ordinal} workout today</div>
+        <button class="lib-delete" onclick="removeExtraSession(${dayIdx}, ${extraIdx})" title="Remove">&times;</button>
+      </div>
+      <div class="type-row">${typeButtons}</div>
+      ${classField}
+      ${subtypeField}
+      ${notesField}
+    </div>
+  `;
 }
 
 function libEntryCard(type, e) {
@@ -982,14 +1168,14 @@ function libEntryCard(type, e) {
 }
 
 function librarySectionHtml(type, title) {
-  const entries = library[type];
+  const entries = library[type].filter(e => e.link);
   return `
     <div class="card">
       <div class="card-label">${title}</div>
       ${entries.length ? entries.map(e => libEntryCard(type, e)).join('') : '<div class="empty-state" style="padding:16px 0;">Nothing saved yet.</div>'}
       <div class="lib-add-form">
         <input class="class-input" style="width:100%;margin-bottom:6px;" id="lib-name-${type}" placeholder="Name (e.g. Legs Day)">
-        <input class="class-input" style="width:100%;margin-bottom:6px;" id="lib-link-${type}" placeholder="YouTube link (optional)">
+        <input class="class-input" style="width:100%;margin-bottom:6px;" id="lib-link-${type}" placeholder="YouTube / Peloton link (required)">
         <textarea class="big-textarea" style="min-height:60px;margin-bottom:6px;" id="lib-notes-${type}" placeholder="Notes (optional)"></textarea>
         <input class="class-input" style="width:100%;margin-bottom:6px;" id="lib-tags-${type}" placeholder="Tags, comma separated (e.g. 30 min, pregnancy)">
         <button class="autofill-btn" style="width:100%;" onclick="submitLibraryForm('${type}')">+ Add to library</button>
@@ -1003,7 +1189,7 @@ function submitLibraryForm(type) {
   const link = document.getElementById('lib-link-' + type).value;
   const notes = document.getElementById('lib-notes-' + type).value;
   const tagsRaw = document.getElementById('lib-tags-' + type).value;
-  if (!name || !name.trim()) return;
+  if (!name || !name.trim() || !link || !link.trim()) return;
   const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
   addLibraryEntry(type, name, link, notes, tags);
   renderLibrary();
