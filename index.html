@@ -573,12 +573,12 @@ function defaultWeekState() {
   return {
     weekStart: currentWeekStartLabel(),
     targets: { strength: 3, cardio: 2 },
-    days: DAYS.map(() => ({ type: null, className: '', subtype: '', notes: '', done: false, knee: false }))
+    days: DAYS.map(() => ({ type: null, className: '', classCategory: null, subtype: '', notes: '', done: false, knee: false }))
   };
 }
 
 function normalizeDay(d) {
-  return Object.assign({ type: null, className: '', subtype: '', notes: '', done: false, knee: false }, d || {});
+  return Object.assign({ type: null, className: '', classCategory: null, subtype: '', notes: '', done: false, knee: false }, d || {});
 }
 
 function currentWeekStartLabel() {
@@ -666,7 +666,7 @@ function setDayType(idx, type) {
   const d = weekState.days[idx];
   const newType = d.type === type ? null : type;
   if (newType !== d.type) {
-    if (newType !== 'class') d.className = '';
+    if (newType !== 'class') { d.className = ''; d.classCategory = null; }
     if (newType !== 'strength' && newType !== 'cardio') d.subtype = '';
   }
   d.type = newType;
@@ -675,9 +675,41 @@ function setDayType(idx, type) {
   renderWeek();
 }
 
+// Best-effort guess of whether a class counts toward the strength or
+// cardio weekly target, based on common studio/class naming.
+const CLASS_CATEGORY_KEYWORDS = {
+  strength: ['pilates', 'barre', 'strength', 'sculpt', 'bootcamp', 'weight', 'lift', 'body pump', 'tone'],
+  cardio: ['spin', 'cycle', 'cycling', 'zumba', 'dance', 'kickbox', 'run club', 'hiit', 'cardio', 'step', 'boxing']
+};
+
+function guessClassCategory(name) {
+  const n = (name || '').toLowerCase();
+  if (CLASS_CATEGORY_KEYWORDS.strength.some(k => n.includes(k))) return 'strength';
+  if (CLASS_CATEGORY_KEYWORDS.cardio.some(k => n.includes(k))) return 'cardio';
+  return null;
+}
+
 function setClassName(idx, val) {
   weekState.days[idx].className = val;
   saveState();
+}
+
+function commitClassName(idx, val) {
+  const d = weekState.days[idx];
+  d.className = val;
+  if (!d.classCategoryManual) {
+    d.classCategory = guessClassCategory(val);
+  }
+  saveState();
+  renderWeek();
+}
+
+function setClassCategory(idx, category) {
+  const d = weekState.days[idx];
+  d.classCategory = d.classCategory === category ? null : category;
+  d.classCategoryManual = true;
+  saveState();
+  renderWeek();
 }
 
 function setSubtype(idx, val) {
@@ -744,8 +776,8 @@ function autofillWeek() {
 
   days.forEach((d, i) => {
     if (d.done || lockedTypes.includes(d.type)) {
-      if (d.type === 'strength') fixedCount.strength++;
-      if (d.type === 'cardio') fixedCount.cardio++;
+      if (d.type === 'strength' || (d.type === 'class' && d.classCategory === 'strength')) fixedCount.strength++;
+      if (d.type === 'cardio' || (d.type === 'class' && d.classCategory === 'cardio')) fixedCount.cardio++;
     } else {
       openIdxs.push(i);
     }
@@ -790,7 +822,13 @@ function renderSummary() {
   const counts = { strength: 0, cardio: 0, class: 0 };
   let kneeCount = 0;
   days.forEach(d => {
-    if (d.type && counts.hasOwnProperty(d.type)) counts[d.type]++;
+    if (d.type === 'class') {
+      counts.class++;
+      if (d.classCategory === 'strength') counts.strength++;
+      if (d.classCategory === 'cardio') counts.cardio++;
+    } else if (d.type && counts.hasOwnProperty(d.type)) {
+      counts[d.type]++;
+    }
     if (d.knee) kneeCount++;
   });
   const t = weekState.targets;
@@ -850,7 +888,13 @@ function renderWeek() {
     <div class="field-block">
       <div class="field-label">Class</div>
       <input class="class-input" style="width:100%;" placeholder="e.g. Yoga 6pm"
-        value="${d.className.replace(/"/g,'&quot;')}" oninput="setClassName(${i}, this.value)">
+        value="${d.className.replace(/"/g,'&quot;')}" oninput="setClassName(${i}, this.value)"
+        onblur="commitClassName(${i}, this.value)">
+      <div class="field-label" style="margin-top:10px;">Counts toward</div>
+      <div class="type-row">
+        <button class="type-btn${d.classCategory === 'strength' ? ' active' : ''}" onclick="setClassCategory(${i}, 'strength')">Strength</button>
+        <button class="type-btn${d.classCategory === 'cardio' ? ' active' : ''}" onclick="setClassCategory(${i}, 'cardio')">Cardio</button>
+      </div>
     </div>` : '';
 
   let subtypeField = '';
