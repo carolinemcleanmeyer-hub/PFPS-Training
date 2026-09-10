@@ -377,6 +377,7 @@ h1 span { color: var(--accent); }
         <input type="number" id="target-cardio" min="0" max="7" value="2" onchange="onTargetChange()">
       </div>
       <button class="autofill-btn" onclick="autofillWeek()">Auto-fill week</button>
+      <button class="autofill-btn" onclick="randomizeWeek()">Randomize week</button>
     </div>
   </div>
 
@@ -861,6 +862,72 @@ function toggleDone(idx) {
   renderWeek();
 }
 
+// ---- Randomize week (targets -> random day placement + random workout picks) ----
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Like autofillWeek, but randomizes which open day gets strength vs cardio vs
+// rest, and picks a random (rather than first-available) library entry for
+// each strength/cardio slot. Respects days already fixed (class, rest, or
+// already logged done), same as autofillWeek.
+function randomizeWeek() {
+  const targets = weekState.targets;
+  const days = weekState.days;
+
+  const lockedTypes = ['class', 'rest'];
+  const fixedCount = { strength: 0, cardio: 0 };
+  const openIdxs = [];
+
+  days.forEach((d, i) => {
+    if (d.done || lockedTypes.includes(d.type)) {
+      if (d.type === 'strength' || (d.type === 'class' && d.classCategory === 'strength')) fixedCount.strength++;
+      if (d.type === 'cardio' || (d.type === 'class' && d.classCategory === 'cardio')) fixedCount.cardio++;
+    } else {
+      openIdxs.push(i);
+    }
+    (d.extras || []).forEach(ex => {
+      if (ex.type === 'strength' || (ex.type === 'class' && ex.classCategory === 'strength')) fixedCount.strength++;
+      if (ex.type === 'cardio' || (ex.type === 'class' && ex.classCategory === 'cardio')) fixedCount.cardio++;
+    });
+  });
+
+  const needStrength = Math.max(0, targets.strength - fixedCount.strength);
+  const needCardio = Math.max(0, targets.cardio - fixedCount.cardio);
+  const needRest = Math.max(0, openIdxs.length - needStrength - needCardio);
+
+  // build a bag of the types still needed, then shuffle both the bag and
+  // the open days so placement across the week is random each time
+  const bag = [];
+  for (let i = 0; i < needStrength; i++) bag.push('strength');
+  for (let i = 0; i < needCardio; i++) bag.push('cardio');
+  for (let i = 0; i < needRest; i++) bag.push('rest');
+  const shuffledBag = shuffle(bag);
+  const shuffledDayIdxs = shuffle(openIdxs);
+
+  shuffledDayIdxs.forEach((dayIdx, i) => {
+    const type = shuffledBag[i] || 'rest';
+    const d = days[dayIdx];
+    d.type = type;
+    d.className = '';
+    d.classCategory = null;
+    d.subtype = '';
+    if (type === 'strength' || type === 'cardio') {
+      const pool = library[type].filter(e => e.link);
+      if (pool.length) d.subtype = pool[Math.floor(Math.random() * pool.length)].name;
+    }
+  });
+
+  saveState();
+  renderWeek();
+}
+
 function resetWeek() {
   if (!confirm('Clear this week\'s plan and log?')) return;
   weekState = defaultWeekState();
@@ -1025,7 +1092,7 @@ function renderWeek() {
     const pool = library[d.type].filter(e => e.link);
     const allTags = [...new Set(pool.flatMap(e => e.tags || []))];
     const filteredPool = dayTagFilter.size === 0
-      ? pool
+      ? []
       : pool.filter(e => [...dayTagFilter].every(t => (e.tags || []).includes(t)));
     const tagFilterHtml = allTags.length ? `
       <div class="tag-filter-row">
@@ -1037,7 +1104,8 @@ function renderWeek() {
       ${tagFilterHtml}
       <div class="chip-row">
         ${filteredPool.map(e => `<button class="chip-btn" onclick="pickLibraryEntry(${i}, '${d.type}', '${e.id}')">${e.name.replace(/</g,'&lt;')}${e.link ? ' 🔗' : ''}</button>`).join('')}
-        ${filteredPool.length === 0 ? '<span class="no-match-note">No saved workouts match all selected tags.</span>' : ''}
+        ${dayTagFilter.size > 0 && filteredPool.length === 0 ? '<span class="no-match-note">No saved workouts match all selected tags.</span>' : ''}
+        ${dayTagFilter.size === 0 && allTags.length ? '<span class="no-match-note">Tap a tag above to see matching workouts.</span>' : ''}
         <button class="chip-btn" onclick="suggestSubtype(${i})" title="Surprise me">✦ surprise me</button>
       </div>
       <textarea class="big-textarea" placeholder="Type or describe the workout..."
